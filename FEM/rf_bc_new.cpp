@@ -22,6 +22,7 @@
 #include <cmath>
 #include <ctime>
 #include <iostream>
+#include <boost/algorithm/string/predicate.hpp>
 
 #include "display.h"
 #include "memory.h"
@@ -81,6 +82,19 @@ double cputime(double x)
 	return usr + sys - x;
 }
 #endif
+
+class CompareNodesElevation
+{
+	MeshLib::CFEMesh* m_msh;
+	public:
+	CompareNodesElevation(MeshLib::CFEMesh* msh):
+		m_msh(msh)
+	{};
+	inline bool operator() (const size_t& lhs, const size_t& rhs)
+	{
+		return m_msh->getNodeVector()[lhs]->Z() > m_msh->getNodeVector()[rhs]->Z();
+	}
+};
 
 CBoundaryConditionNode::CBoundaryConditionNode()
 {
@@ -1190,6 +1204,24 @@ void CBoundaryConditionsGroup::Set(CRFProcess* pcs, int ShiftInNodeVector, const
 				m_polyline = GEOGetPLYByName(bc->geo_name);
 				// 08/2010 TF get the polyline data structure
 				GEOLIB::Polyline const* ply(static_cast<const GEOLIB::Polyline*>(bc->getGeoObj()));
+
+				//sort river nodes
+				if (boost::starts_with(bc->geo_name, "River"))
+				{
+					std::vector<size_t> my_nodes_vector;
+					m_msh->GetNODOnPLY(ply, my_nodes_vector);
+					nodes_vector.clear();
+					for (size_t k(0); k < my_nodes_vector.size(); k++)
+						nodes_vector.push_back(my_nodes_vector[k]);
+					//C++11 Lambda expression, making LessThanKey a local class also only works with C++11
+					//std::sort(nodes_vector.begin(), nodes_vector.end(),
+					//		  [m_msh](size_t lhs, size_t rhs) -> bool
+					//		  {
+					//		  	  return (m_msh->getNodeVector()[lhs]->Z() < m_msh->getNodeVector()[rhs]->Z());
+					//		  });
+
+					std::sort(nodes_vector.begin(), nodes_vector.end(), CompareNodesElevation(m_msh));
+				}
 
 				if (m_polyline)
 				{
