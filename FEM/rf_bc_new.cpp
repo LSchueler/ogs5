@@ -1205,26 +1205,30 @@ void CBoundaryConditionsGroup::Set(CRFProcess* pcs, int ShiftInNodeVector, const
 				// 08/2010 TF get the polyline data structure
 				GEOLIB::Polyline const* ply(static_cast<const GEOLIB::Polyline*>(bc->getGeoObj()));
 
-				//sort river nodes
-				if (boost::starts_with(bc->geo_name, "River"))
-				{
-					std::vector<size_t> my_nodes_vector;
-					m_msh->GetNODOnPLY(ply, my_nodes_vector);
-					nodes_vector.clear();
-					for (size_t k(0); k < my_nodes_vector.size(); k++)
-						nodes_vector.push_back(my_nodes_vector[k]);
-					//C++11 Lambda expression, making LessThanKey a local class also only works with C++11
-					//std::sort(nodes_vector.begin(), nodes_vector.end(),
-					//		  [m_msh](size_t lhs, size_t rhs) -> bool
-					//		  {
-					//		  	  return (m_msh->getNodeVector()[lhs]->Z() < m_msh->getNodeVector()[rhs]->Z());
-					//		  });
-
-					std::sort(nodes_vector.begin(), nodes_vector.end(), CompareNodesElevation(m_msh));
-				}
-
 				if (m_polyline)
 				{
+					//sort river nodes
+					if (boost::starts_with(bc->geo_name, "River"))
+					{
+						std::vector<size_t> my_nodes_vector;
+						m_msh->GetNODOnPLY(ply, my_nodes_vector);
+						nodes_vector.clear();
+						for (size_t k(0); k < my_nodes_vector.size(); k++)
+							nodes_vector.push_back(my_nodes_vector[k]);
+						//C++11 Lambda expression, making CompareNodesElevation a local class also only works with C++11
+						//std::sort(nodes_vector.begin(), nodes_vector.end(),
+						//		  [m_msh](size_t lhs, size_t rhs) -> bool
+						//		  {
+						//		  	  return (m_msh->getNodeVector()[lhs]->Z() < m_msh->getNodeVector()[rhs]->Z());
+						//		  });
+
+						std::sort(nodes_vector.begin(), nodes_vector.end(), CompareNodesElevation(m_msh));
+						for(size_t i(0); i < nodes_vector.size(); i++)
+						{
+							std::cout << "i = " << i << ", node Z = " << m_msh->getNodeVector()[nodes_vector[i]]->Z() << std::endl;
+						}
+					}
+
 					if (bc->getProcessDistributionType() == FiniteElement::CONSTANT
 					    || bc->getProcessDistributionType() == FiniteElement::SWITCH)
 					{
