@@ -39,6 +39,7 @@
 
 // GEOLIB
 #include "GEOObjects.h"
+#include "Point.h"
 
 // MSHLib
 //#include "mshlib.h"
@@ -1248,31 +1249,29 @@ void CBoundaryConditionsGroup::Set(CRFProcess* pcs, int ShiftInNodeVector, const
 				m_polyline = GEOGetPLYByName(bc->geo_name);
 				// 08/2010 TF get the polyline data structure
 				GEOLIB::Polyline const* ply(static_cast<const GEOLIB::Polyline*>(bc->getGeoObj()));
-
 				if (m_polyline)
 				{
 					//sort river nodes
 					if (boost::starts_with(bc->geo_name, "River"))
 					{
 						std::vector<size_t> my_nodes_vector;
-						m_msh->GetNODOnPLY(ply, my_nodes_vector);
-						nodes_vector.clear();
-						for (size_t k(0); k < my_nodes_vector.size(); k++)
-							nodes_vector.push_back(my_nodes_vector[k]);
-						//C++11 Lambda expression, making CompareNodesElevation a local class also only works with C++11
-						//std::sort(nodes_vector.begin(), nodes_vector.end(),
-						//		  [m_msh](size_t lhs, size_t rhs) -> bool
-						//		  {
-						//		  	  return (m_msh->getNodeVector()[lhs]->Z() < m_msh->getNodeVector()[rhs]->Z());
-						//		  });
-
-						std::sort(nodes_vector.begin(), nodes_vector.end(), CompareNodesElevation(m_msh));
-						for(size_t i(0); i < nodes_vector.size(); i++)
+						std::vector<CGLPoint*> line_points = m_polyline->point_vector;
+						std::vector<GEOLIB::Point*> sub_pts;
+						for(size_t i(0); i < line_points.size()-1; i++)
 						{
-							std::cout << "i = " << i << ", node Z = " << m_msh->getNodeVector()[nodes_vector[i]]->Z() << std::endl;
+							sub_pts.push_back(new GEOLIB::Point(line_points[i]->getPoint()));
+							sub_pts.push_back(new GEOLIB::Point(line_points[i+1]->getPoint()));
+							GEOLIB::Polyline* sub_ply = new GEOLIB::Polyline(sub_pts);
+							sub_ply->addPoint(0);
+							sub_ply->addPoint(1);
+							m_msh->GetNODOnPLY(sub_ply, my_nodes_vector);
+							std::sort(my_nodes_vector.begin(), my_nodes_vector.end(), CompareNodesElevation(m_msh));
+							for (size_t k(0); k < my_nodes_vector.size(); k++)
+								nodes_vector.push_back(my_nodes_vector[k]);
+							sub_pts.clear();
+							my_nodes_vector.clear();
 						}
 					}
-
 					if (bc->getProcessDistributionType() == FiniteElement::CONSTANT
 					    || bc->getProcessDistributionType() == FiniteElement::SWITCH)
 					{
