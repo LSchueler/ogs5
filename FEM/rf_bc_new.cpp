@@ -83,16 +83,60 @@ double cputime(double x)
 }
 #endif
 
-class CompareNodesElevation
+class CompareNodes
 {
-	MeshLib::CFEMesh* m_msh;
-	public:
-	CompareNodesElevation(MeshLib::CFEMesh* msh):
+protected:
+	const MeshLib::CFEMesh* m_msh;
+public:
+	CompareNodes(const MeshLib::CFEMesh* msh):
 		m_msh(msh)
+	{};
+	virtual ~CompareNodes()
+	{};
+	virtual inline bool operator() (const size_t& lhs, const size_t& rhs) = 0;
+};
+
+class CompareNodesElevation: public CompareNodes
+{
+public:
+	CompareNodesElevation(MeshLib::CFEMesh* msh):
+		CompareNodes(msh)
+	{};
+	virtual ~CompareNodesElevation()
 	{};
 	inline bool operator() (const size_t& lhs, const size_t& rhs)
 	{
 		return m_msh->getNodeVector()[lhs]->Z() > m_msh->getNodeVector()[rhs]->Z();
+	}
+};
+
+class CompareNodesDistance: public CompareNodes
+{
+	std::vector<double> m_coords;
+public:
+	CompareNodesDistance(const MeshLib::CFEMesh* msh, const double coords[3]):
+		CompareNodes(msh)
+	{
+		for(int i(0); i < 3; i++)
+		{
+			m_coords.push_back(coords[i]);
+		}
+	};
+	virtual ~CompareNodesDistance()
+	{};
+	double distance_squared(const double coords[3])
+	{
+		double dist = 0.;
+		for(int i(0); i < 3; i++)
+		{
+			dist += (coords[i] - m_coords[i]) * (coords[i] - m_coords[i]);
+		}
+		return dist;
+	};
+	inline bool operator() (const size_t& lhs, const size_t& rhs)
+	{
+		return (distance_squared(m_msh->getNodeVector()[lhs]->getData()) >
+			    distance_squared(m_msh->getNodeVector()[rhs]->getData()));
 	}
 };
 
